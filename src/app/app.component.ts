@@ -1,6 +1,7 @@
 import {Component, OnInit} from '@angular/core';
-import {SwPush, SwUpdate} from "@angular/service-worker";
+import {SwPush, SwUpdate, VersionReadyEvent} from "@angular/service-worker";
 import {DataService} from "./data.service";
+import {filter, map} from "rxjs";
 
 @Component({
   selector: 'app-root',
@@ -26,15 +27,36 @@ export class AppComponent implements OnInit{
     this.data.getJokes().subscribe(res=> {
       this.joke = res;
     })
+    window.addEventListener('online', this.isOnline, false)
+    window.addEventListener('offline', this.isOnline, false)
+  }
+
+  isOnline(): void {
+    if (navigator.onLine) {
+      console.log('online');
+    } else {
+      console.log('offline');
+    }
   }
 
   reloadCache(){
     if(this.swUpdate.isEnabled){
-      this.swUpdate.available.subscribe(() =>{
-        if(confirm('New version available! would you like to update?')){
-          this.swUpdate.activateUpdate().then(()=> document.location.reload());
-        }
-      })
+      // this.swUpdate.available.subscribe(() =>{
+      //   if(confirm('New version available! would you like to update?')){
+      //     this.swUpdate.activateUpdate().then(()=> document.location.reload());
+      //   }
+      // })
+
+      this.swUpdate.versionUpdates.pipe(
+        filter((evt: any): evt is VersionReadyEvent => evt.type === 'VERSION_READY'),
+        map((evt: any) => {
+          console.info(`currentVersion=[${evt.currentVersion} | latestVersion=[${evt.latestVersion}]`);
+            if(confirm('New version available! would you like to update?')){
+              this.swUpdate.activateUpdate().then(()=> document.location.reload());
+            }
+        }),
+      );
+
     }
   }
   private pushservice() {
@@ -51,6 +73,23 @@ export class AppComponent implements OnInit{
     }
 
   }
+
+  // private loadModalPwa(): void {
+  //   if (this.platform.ANDROID) {
+  //     window.addEventListener('beforeinstallprompt', (event: any) => {
+  //       event.preventDefault();
+  //
+  //     });
+  //   }
+  //
+  //   if (this.platform.IOS && this.platform.SAFARI) {
+  //     const isInStandaloneMode = ('standalone' in window.navigator) && ((<any>window.navigator)['standalone']);
+  //     if (!isInStandaloneMode) {
+  //
+  //     }
+  //   }
+  // }
+
 }
 //TODO: web-push send-notification --endpoint="https://fcm.googleapis.com/fcm/send/crnx9IRt9eI:APA91bGaLnSs3O6DJCF4IRxg4UOoTVcicbowAb8T31vDWXrqDCFNdAtWZNV53ufnOSDnLjSx5yshJ-NNfrZoI340KRkikg2QEDRD3QuDmIWsJ3DaNSGjviYISA5gTLrd_UQDwAzFKFdL" --key="BOLXmcvTfW4x1455dinQdyiOdiv6f3FusaH2mbwuyBtTJgOYuCnG5PuHkY7JAOBTHSZuAwpX2CuiAcf6tY3i2aY" --auth="UCvcjcOMvCI4Qt2DPppPpQ" --payload="{ \"test\": \"Hello data\"}" --vapid-subject="http://127.0.0.1:8080/" --vapid-pubkey=BNYwYbsn9GrzAE6wEIYZFaNVuMYmcB3YzJm-hwQRlmejgAcPgeCbVK5xdBbgBQIh1lgaTx45RBOfxkChW8FZyfE --vapid-pvtkey=30pjW8hGcJsGs-bCR1DUe0mBE7tNDR-KIO2zvfgFjTQ
 // https://youtu.be/eoaE0M_DRFI
