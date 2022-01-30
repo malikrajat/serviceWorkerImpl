@@ -1,7 +1,7 @@
-import {Component, OnInit} from '@angular/core';
+import {ApplicationRef, Component, OnInit} from '@angular/core';
 import {SwPush, SwUpdate, VersionReadyEvent} from "@angular/service-worker";
 import {DataService} from "./data.service";
-import {filter, map} from "rxjs";
+import {filter, interval, map} from "rxjs";
 
 @Component({
   selector: 'app-root',
@@ -18,6 +18,7 @@ export class AppComponent implements OnInit{
     private swUpdate: SwUpdate,
     // private service:NotificationService,
     private data : DataService,
+    private appRef: ApplicationRef,
     readonly swPush: SwPush) {
   }
 
@@ -37,6 +38,7 @@ export class AppComponent implements OnInit{
     } else {
       console.log('offline');
     }
+    this.checkUpdate();
   }
 
   reloadCache(){
@@ -57,8 +59,26 @@ export class AppComponent implements OnInit{
         }),
       );
 
+      this.swUpdate.activated.subscribe((event) => {
+        console.log(`current`, event.previous, `available `, event.current);
+      });
+
     }
   }
+
+  checkUpdate() {
+    this.appRef.isStable.subscribe((isStable) => {
+      if (isStable) {
+        const timeInterval = interval(8 * 60 * 60 * 1000);
+
+        timeInterval.subscribe(() => {
+          this.swUpdate.checkForUpdate().then(() => console.log('checked'));
+          console.log('update checked');
+        });
+      }
+    });
+  }
+
   private pushservice() {
     if(this.swPush.isEnabled) {
       this.swPush.messages.subscribe(msg => {
